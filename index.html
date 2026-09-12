@@ -44,8 +44,9 @@
     background:#eee; border:1px solid #ccc; font-size:28px; font-weight:700;
     height:68px;
   }
-  .list thead th:first-child { width:150px; }
-  .list thead th:nth-child(2), .list thead th:nth-child(3) { width:auto; }
+  .list .radioCol { width:150px; }
+  .list .dateCol { width:50%; }
+  .list .timeCol { width:auto; }
   .list td { border-left:1px solid #ccc; border-right:1px solid #ccc; border-bottom:1px solid #ccc; height:84px; font-size:27px; }
   .list td:first-child { text-align:center; }
   .list input[type="radio"] { width:34px; height:34px; accent-color:#777; margin:0; }
@@ -66,14 +67,15 @@
     h1 { font-size:52px; }
     .list thead th { font-size:27px; }
     .list td { font-size:26px; }
-    .list thead th:first-child { width:150px; }
+    .list .radioCol { width:150px; }
+    .list .dateCol { width:50%; }
   }
 </style>
 </head>
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v2</div>
+  <div class="version">v3</div>
 </header>
 
 <nav>
@@ -94,6 +96,7 @@
 
 <main id="listScreen">
   <table class="list">
+    <colgroup><col class="radioCol"><col class="dateCol"><col class="timeCol"></colgroup>
     <thead><tr><th></th><th>Date</th><th>Time</th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
@@ -216,19 +219,24 @@ function renderList() {
   tbody.innerHTML="";
   document.getElementById("empty").style.display=records.length ? "none":"block";
 
-  // Each distinct date receives a different light background color.
-  // All rows sharing that date use the same color, making date groups easy to see.
-  const dateColors = ["#e7f1ff","#eaf7ea","#fff4d9","#f3e9ff","#ffe9e9","#e8f7f5"];
+  // Color only dates that occur at least twice.
+  // Every singleton date remains the normal white background.
+  const dateCounts = new Map();
+  for (const r of records) dateCounts.set(r.date, (dateCounts.get(r.date) || 0) + 1);
+
+  const dateColors = ["#dceaff","#e3f3e3","#fff0c7","#eee1ff","#ffe1e1","#ddf2ef"];
   const colorByDate = new Map();
   let colorIndex = 0;
 
   for (const r of records) {
-    if (!colorByDate.has(r.date)) {
-      colorByDate.set(r.date, dateColors[colorIndex % dateColors.length]);
-      colorIndex++;
-    }
     const tr=document.createElement("tr");
-    tr.style.backgroundColor = colorByDate.get(r.date);
+    if (dateCounts.get(r.date) >= 2) {
+      if (!colorByDate.has(r.date)) {
+        colorByDate.set(r.date, dateColors[colorIndex % dateColors.length]);
+        colorIndex++;
+      }
+      tr.style.backgroundColor = colorByDate.get(r.date);
+    }
 
     const radio=document.createElement("input");
     radio.type="radio"; radio.name="selected"; radio.checked=(r.id===selectedId);
@@ -263,50 +271,66 @@ function showEdit(mode,id=null) {
 }
 function selectedRecord() { return records.find(r=>r.id===selectedId); }
 
-function maskedDateInput(e) {
-  const el=e.target;
-  const old=el.value, pos=el.selectionStart ?? old.length;
-  const digits=old.replace(/\D/g,"").slice(0,8);
-  const formatted=digitsToDate(digits);
-  const digitCountBefore=(old.slice(0,pos).match(/\d/g)||[]).length;
-  let newPos=digitCountBefore;
-  if (digitCountBefore>=2) newPos++;
-  if (digitCountBefore>=4) newPos++;
-  el.value=formatted;
-  el.setSelectionRange(Math.min(newPos,formatted.length),Math.min(newPos,formatted.length));
+function formatMasked(value, kind) {
+  const digits = value.replace(/\D/g, "").slice(0, kind === "date" ? 8 : 4);
+  return kind === "date" ? digitsToDate(digits) : digitsToTime(digits);
 }
-function maskedTimeInput(e) {
-  const el=e.target;
-  const old=el.value, pos=el.selectionStart ?? old.length;
-  const digits=old.replace(/\D/g,"").slice(0,4);
-  const formatted=digitsToTime(digits);
-  const digitCountBefore=(old.slice(0,pos).match(/\d/g)||[]).length;
-  let newPos=digitCountBefore;
-  if (digitCountBefore>=2) newPos++;
-  el.value=formatted;
-  el.setSelectionRange(Math.min(newPos,formatted.length),Math.min(newPos,formatted.length));
+
+function setCaretByDigitCount(el, digitCount, kind) {
+  const max = kind === "date" ? 8 : 4;
+  let count = 0, pos = 0;
+  for (; pos < el.value.length && count < digitCount; pos++) {
+    if (/\d/.test(el.value[pos])) count++;
+  }
+  if (digitCount >= 2 && el.value.length > 2) pos = Math.max(pos, kind === "date" ? 3 : 3);
+  if (kind === "date" && digitCount >= 4) pos = Math.max(pos, 6);
+  pos = Math.min(pos, el.value.length);
+  el.setSelectionRange(pos,pos);
 }
-function maskedKeydown(e, separator) {
+
+function maskedInput(e, kind) {
+  const el=e.target;
+  const old=el.value;
+  const pos=el.selectionStart ?? old.length;
+  const digitCount=(old.slice(0,pos).match(/\d/g)||[]).length;
+  el.value=formatMasked(old, kind);
+  setCaretByDigitCount(el, digitCount, kind);
+}
+
+function maskedKeydown(e, kind) {
   if (e.key !== "Backspace" && e.key !== "Delete") return;
+
   const el=e.target;
-  const start=el.selectionStart ?? 0, end=el.selectionEnd ?? 0;
-  if (start===end) {
-    if (e.key==="Backspace" && start>0 && el.value[start-1]===separator) {
-      e.preventDefault();
-      const p=start-1;
-      el.setSelectionRange(p,p);
-      return;
-    }
-    if (e.key==="Delete" && el.value[start]===separator) {
-      e.preventDefault();
-      el.setSelectionRange(start+1,start+1);
-    }
+  let start=el.selectionStart ?? 0;
+  let end=el.selectionEnd ?? start;
+  const separator = kind === "date" ? "/" : ":";
+
+  // If a range is selected, allow the browser to remove digits, but
+  // immediately reformatting on input will restore all separators.
+  if (start !== end) return;
+
+  if (e.key === "Backspace" && start > 0 && el.value[start-1] === separator) {
+    // Never delete the separator. Instead remove the digit immediately before it.
+    e.preventDefault();
+    const digitsBefore = (el.value.slice(0,start-1).match(/\d/g)||[]).length;
+    const digits = el.value.replace(/\D/g,"").split("");
+    if (digitsBefore > 0) digits.splice(digitsBefore-1,1);
+    el.value = formatMasked(digits.join(""), kind);
+    setCaretByDigitCount(el, digitsBefore-1, kind);
+    return;
+  }
+
+  if (e.key === "Delete" && el.value[start] === separator) {
+    // Never delete the separator; skip over it.
+    e.preventDefault();
+    el.setSelectionRange(start+1,start+1);
   }
 }
-document.getElementById("dateInput").addEventListener("input", maskedDateInput);
-document.getElementById("timeInput").addEventListener("input", maskedTimeInput);
-document.getElementById("dateInput").addEventListener("keydown", e=>maskedKeydown(e,"/"));
-document.getElementById("timeInput").addEventListener("keydown", e=>maskedKeydown(e,":"));
+
+document.getElementById("dateInput").addEventListener("input", e=>maskedInput(e,"date"));
+document.getElementById("timeInput").addEventListener("input", e=>maskedInput(e,"time"));
+document.getElementById("dateInput").addEventListener("keydown", e=>maskedKeydown(e,"date"));
+document.getElementById("timeInput").addEventListener("keydown", e=>maskedKeydown(e,"time"));
 
 function closeFileMenu(){ const d=document.querySelector("details"); if(d) d.removeAttribute("open"); }
 document.getElementById("addBtn").onclick=()=>{closeFileMenu();showEdit("Add");};
@@ -348,7 +372,7 @@ document.getElementById("cancelBtn").onclick=()=>{ editingId=null; showList(); }
 document.getElementById("exportBtn").onclick=()=>{
   closeFileMenu();
   sortRecords();
-  const csv="Date,Time\\n"+records.map(r=>`${r.date},${r.time}`).join("\\n");
+  const csv="Date,Time\n"+records.map(r=>`${r.date},${r.time}`).join("\n");
   const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob); a.download="Count.csv"; a.click();
@@ -369,7 +393,8 @@ document.getElementById("confirmImport").onclick=()=>{
   const reader=new FileReader();
   reader.onload=()=>{
     try {
-      const lines=reader.result.replace(/\r/g,"").split("\n").filter(x=>x.trim()!=="");
+      const text = reader.result.replace(/^\uFEFF/, "");
+    const lines=text.replace(/\r/g,"").split("\n").filter(x=>x.trim()!=="");
       const start=/^\s*date\s*,\s*time\s*$/i.test(lines[0]) ? 1 : 0;
       const imported=[];
       for(let i=start;i<lines.length;i++){

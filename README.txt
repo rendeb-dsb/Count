@@ -1,3 +1,8 @@
-Count PWA - Version v2
+Count PWA - Version v3
 
-Changes: Excedrin-inspired mobile layout; distinct light background color per date group; date/time masks automatically preserve / and : during numeric entry and deletion; numerical descending date/time sort.
+Changes in v3:
+- Date/time separators are protected during Backspace/Delete editing.
+- Only dates occurring two or more times receive group colors; singleton dates stay white.
+- Table proportions and typography are aligned to the supplied Excedrin example.
+- Export now writes real CSV line breaks, fixing re-import of Count.csv.
+- Import accepts normal LF/CRLF CSV files and a UTF-8 BOM.
