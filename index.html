@@ -20,7 +20,7 @@
   details { width:100%; }
   details summary {
     list-style:none; cursor:pointer; height:90px; padding:25px 52px;
-    font-size:34px; font-weight:700; user-select:none;
+    font-size:32px; font-weight:700; user-select:none;
   }
   details summary::-webkit-details-marker { display:none; }
   .menu {
@@ -30,7 +30,7 @@
   }
   .menu button {
     width:100%; height:72px; border:0; border-radius:0; background:#fff;
-    text-align:left; padding:0 36px; font-size:29px;
+    text-align:left; padding:0 36px; font-size:24px;
   }
   .menu button:hover { background:#f2f2f2; }
   .menu button:disabled {
@@ -41,19 +41,19 @@
   .list { width:100%; border-collapse:collapse; table-layout:fixed; }
   .list th, .list td { padding:13px 12px; }
   .list thead th {
-    background:#eee; border:1px solid #ccc; font-size:28px; font-weight:700;
+    background:#eee; border:1px solid #ccc; font-size:22px; font-weight:700;
     height:68px;
   }
   .list .radioCol { width:150px; }
   .list .dateCol { width:50%; }
   .list .timeCol { width:auto; }
-  .list td { border-left:1px solid #ccc; border-right:1px solid #ccc; border-bottom:1px solid #ccc; height:84px; font-size:27px; }
+  .list td { border-left:1px solid #ccc; border-right:1px solid #ccc; border-bottom:1px solid #ccc; height:68px; font-size:22px; }
   .list td:first-child { text-align:center; }
   .list input[type="radio"] { width:34px; height:34px; accent-color:#777; margin:0; }
-  .empty { color:#555; padding:18px 4px; font-size:18px; }
+  .empty { color:#555; padding:18px 4px; font-size:16px; }
   .screen { max-width:500px; margin:10px auto; }
-  .screen h2 { margin:0 0 20px; font-size:36px; }
-  label { display:block; margin:18px 0 6px; font-weight:700; font-size:20px; }
+  .screen h2 { margin:0 0 20px; font-size:28px; }
+  label { display:block; margin:18px 0 6px; font-weight:700; font-size:17px; }
   .masked { width:100%; font-size:27px; padding:12px; letter-spacing:1px; }
   .actions { display:flex; gap:10px; margin-top:24px; }
   button { font-size:18px; padding:10px 18px; border:1px solid #777; border-radius:5px; background:#f5f5f5; color:#111; }
@@ -61,12 +61,12 @@
   .error { color:#a00; font-size:14px; margin-top:8px; min-height:18px; }
   .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; padding:20px; z-index:50; }
   .modal { background:#fff; width:min(420px,100%); padding:20px; border-radius:8px; box-shadow:0 8px 30px rgba(0,0,0,.3); }
-  .modal h3 { margin-top:0; font-size:25px; }
+  .modal h3 { margin-top:0; font-size:22px; }
   @media (max-width:600px) {
     header { height:160px; padding-left:32px; padding-right:32px; }
     h1 { font-size:52px; }
-    .list thead th { font-size:27px; }
-    .list td { font-size:26px; }
+    .list thead th { font-size:22px; }
+    .list td { font-size:22px; }
     .list .radioCol { width:150px; }
     .list .dateCol { width:50%; }
   }
@@ -75,7 +75,7 @@
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v3</div>
+  <div class="version">v4</div>
 </header>
 
 <nav>
@@ -199,6 +199,7 @@ function digitsToTime(v) {
   return out;
 }
 function validDate(v) {
+  v=v.replace(/_/g,"");
   const m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (!m) return false;
   const month=+m[1], day=+m[2], year=+m[3];
@@ -206,6 +207,7 @@ function validDate(v) {
   return month>=1 && month<=12 && day>=1 && dt.getFullYear()===year && dt.getMonth()===month-1 && dt.getDate()===day;
 }
 function validTime(v) {
+  v=v.replace(/_/g,"");
   const m=v.match(/^(\d{2}):(\d{2})$/);
   return !!m && +m[1] <= 23 && +m[2] <= 59;
 }
@@ -260,77 +262,187 @@ function showEdit(mode,id=null) {
   editingId=id;
   document.getElementById("editError").textContent="";
   if (mode==="Add") {
-    document.getElementById("dateInput").value=todayDate();
-    document.getElementById("timeInput").value=nowTime();
+    initializeMask(dateEl,"date",todayDate());
+    initializeMask(timeEl,"time",nowTime());
   } else {
     const r=records.find(x=>x.id===id);
-    document.getElementById("dateInput").value=r?.date || "";
-    document.getElementById("timeInput").value=r?.time || "";
+    initializeMask(dateEl,"date",r?.date || "");
+    initializeMask(timeEl,"time",r?.time || "");
   }
   document.getElementById("dateInput").focus();
 }
 function selectedRecord() { return records.find(r=>r.id===selectedId); }
 
-function formatMasked(value, kind) {
-  const digits = value.replace(/\D/g, "").slice(0, kind === "date" ? 8 : 4);
-  return kind === "date" ? digitsToDate(digits) : digitsToTime(digits);
-}
+const MASKS = {
+  date: ["_","_","/","_","_","/","_","_","_","_"],
+  time: ["_","_",":","_","_"]
+};
 
-function setCaretByDigitCount(el, digitCount, kind) {
-  const max = kind === "date" ? 8 : 4;
-  let count = 0, pos = 0;
-  for (; pos < el.value.length && count < digitCount; pos++) {
-    if (/\d/.test(el.value[pos])) count++;
+function maskDigits(value, kind) {
+  const maxDigits = kind === "date" ? 8 : 4;
+  const digits = String(value).replace(/\D/g,"").slice(0,maxDigits);
+  const mask = MASKS[kind].slice();
+  let di=0;
+  for (let i=0;i<mask.length && di<digits.length;i++) {
+    if (mask[i]==="_") mask[i]=digits[di++];
   }
-  if (digitCount >= 2 && el.value.length > 2) pos = Math.max(pos, kind === "date" ? 3 : 3);
-  if (kind === "date" && digitCount >= 4) pos = Math.max(pos, 6);
-  pos = Math.min(pos, el.value.length);
-  el.setSelectionRange(pos,pos);
+  return mask.join("");
 }
 
-function maskedInput(e, kind) {
-  const el=e.target;
-  const old=el.value;
-  const pos=el.selectionStart ?? old.length;
-  const digitCount=(old.slice(0,pos).match(/\d/g)||[]).length;
-  el.value=formatMasked(old, kind);
-  setCaretByDigitCount(el, digitCount, kind);
+function digitPositions(kind) {
+  const p=[];
+  MASKS[kind].forEach((c,i)=>{ if(c==="_") p.push(i); });
+  return p;
 }
 
-function maskedKeydown(e, kind) {
-  if (e.key !== "Backspace" && e.key !== "Delete") return;
+function nextDigitPosition(pos, kind) {
+  const p=digitPositions(kind);
+  return p.find(x=>x>=pos) ?? MASKS[kind].length;
+}
+function previousDigitPosition(pos, kind) {
+  const p=digitPositions(kind);
+  for(let i=p.length-1;i>=0;i--) if(p[i]<pos) return p[i];
+  return -1;
+}
 
+function initializeMask(el, kind, value) {
+  el.value = maskDigits(value, kind);
+  const p=nextDigitPosition(0,kind);
+  el.setSelectionRange(p,p);
+}
+
+function maskedBeforeInput(e, kind) {
   const el=e.target;
-  let start=el.selectionStart ?? 0;
-  let end=el.selectionEnd ?? start;
-  const separator = kind === "date" ? "/" : ":";
+  const start=el.selectionStart ?? 0;
+  const end=el.selectionEnd ?? start;
+  const positions=digitPositions(kind);
+  const chars=el.value.split("");
 
-  // If a range is selected, allow the browser to remove digits, but
-  // immediately reformatting on input will restore all separators.
-  if (start !== end) return;
+  // Work with the existing fixed mask, not with a normal editable string.
+  e.preventDefault();
 
-  if (e.key === "Backspace" && start > 0 && el.value[start-1] === separator) {
-    // Never delete the separator. Instead remove the digit immediately before it.
-    e.preventDefault();
-    const digitsBefore = (el.value.slice(0,start-1).match(/\d/g)||[]).length;
-    const digits = el.value.replace(/\D/g,"").split("");
-    if (digitsBefore > 0) digits.splice(digitsBefore-1,1);
-    el.value = formatMasked(digits.join(""), kind);
-    setCaretByDigitCount(el, digitsBefore-1, kind);
+  if (e.inputType === "insertText" || e.inputType === "insertCompositionText") {
+    const text=(e.data || "").replace(/\D/g,"");
+    let pos=start;
+
+    for (const ch of text) {
+      pos=nextDigitPosition(pos,kind);
+      if (pos>=chars.length) break;
+      chars[pos]=ch;
+      pos++;
+      // Automatically skip the separator.
+      if (pos<chars.length && MASKS[kind][pos] !== "_") pos++;
+    }
+    el.value=chars.join("");
+    el.setSelectionRange(Math.min(pos,chars.length),Math.min(pos,chars.length));
     return;
   }
 
-  if (e.key === "Delete" && el.value[start] === separator) {
-    // Never delete the separator; skip over it.
-    e.preventDefault();
-    el.setSelectionRange(start+1,start+1);
+  if (e.inputType === "deleteContentBackward") {
+    let p = previousDigitPosition(start,kind);
+    if (start !== end) {
+      for (const x of positions) if(x>=start && x<end) chars[x]="_";
+      el.value=chars.join("");
+      el.setSelectionRange(start,start);
+    } else if (p>=0) {
+      chars[p]="_";
+      el.value=chars.join("");
+      el.setSelectionRange(p,p);
+    }
+    return;
+  }
+
+  if (e.inputType === "deleteContentForward") {
+    let p = nextDigitPosition(start,kind);
+    if (p<chars.length) {
+      chars[p]="_";
+      el.value=chars.join("");
+      el.setSelectionRange(p,p);
+    }
+    return;
+  }
+
+  if (e.inputType === "insertFromPaste") {
+    const text=(e.data || "").replace(/\D/g,"");
+    let pos=start;
+    for(const ch of text) {
+      pos=nextDigitPosition(pos,kind);
+      if(pos>=chars.length) break;
+      chars[pos]=ch; pos++;
+      if(pos<chars.length && MASKS[kind][pos]!=="_") pos++;
+    }
+    el.value=chars.join("");
+    el.setSelectionRange(Math.min(pos,chars.length),Math.min(pos,chars.length));
   }
 }
 
-document.getElementById("dateInput").addEventListener("input", e=>maskedInput(e,"date"));
-document.getElementById("timeInput").addEventListener("input", e=>maskedInput(e,"time"));
-document.getElementById("dateInput").addEventListener("keydown", e=>maskedKeydown(e,"date"));
-document.getElementById("timeInput").addEventListener("keydown", e=>maskedKeydown(e,"time"));
+function maskedKeydown(e, kind) {
+  // Some Android keyboard/browser combinations don't expose beforeinput
+  // for Backspace/Delete, so handle those keys too.
+  if (e.key!=="Backspace" && e.key!=="Delete") return;
+  e.preventDefault();
+  const el=e.target;
+  const start=el.selectionStart ?? 0;
+  const end=el.selectionEnd ?? start;
+  const chars=el.value.split("");
+  const positions=digitPositions(kind);
+
+  if(start!==end) {
+    for(const p of positions) if(p>=start && p<end) chars[p]="_";
+    el.value=chars.join("");
+    el.setSelectionRange(start,start);
+    return;
+  }
+
+  if(e.key==="Backspace") {
+    const p=previousDigitPosition(start,kind);
+    if(p>=0) {
+      chars[p]="_";
+      el.value=chars.join("");
+      el.setSelectionRange(p,p);
+    }
+  } else {
+    const p=nextDigitPosition(start,kind);
+    if(p<chars.length) {
+      chars[p]="_";
+      el.value=chars.join("");
+      el.setSelectionRange(p,p);
+    }
+  }
+}
+
+function maskedPaste(e, kind) {
+  e.preventDefault();
+  const text=(e.clipboardData || window.clipboardData).getData("text").replace(/\D/g,"");
+  const el=e.target, chars=el.value.split("");
+  let pos=el.selectionStart ?? 0;
+  for(const ch of text) {
+    pos=nextDigitPosition(pos,kind);
+    if(pos>=chars.length) break;
+    chars[pos]=ch; pos++;
+    if(pos<chars.length && MASKS[kind][pos]!=="_") pos++;
+  }
+  el.value=chars.join("");
+  el.setSelectionRange(Math.min(pos,chars.length),Math.min(pos,chars.length));
+}
+
+function maskedBlur(el, kind) {
+  // Keep the separators visible even when no digits have been entered.
+  const current=el.value.replace(/\D/g,"");
+  el.value=maskDigits(current,kind);
+}
+
+const dateEl=document.getElementById("dateInput");
+const timeEl=document.getElementById("timeInput");
+
+dateEl.addEventListener("beforeinput", e=>maskedBeforeInput(e,"date"));
+timeEl.addEventListener("beforeinput", e=>maskedBeforeInput(e,"time"));
+dateEl.addEventListener("keydown", e=>maskedKeydown(e,"date"));
+timeEl.addEventListener("keydown", e=>maskedKeydown(e,"time"));
+dateEl.addEventListener("paste", e=>maskedPaste(e,"date"));
+timeEl.addEventListener("paste", e=>maskedPaste(e,"time"));
+dateEl.addEventListener("blur", ()=>maskedBlur(dateEl,"date"));
+timeEl.addEventListener("blur", ()=>maskedBlur(timeEl,"time"));
 
 function closeFileMenu(){ const d=document.querySelector("details"); if(d) d.removeAttribute("open"); }
 document.getElementById("addBtn").onclick=()=>{closeFileMenu();showEdit("Add");};
@@ -352,8 +464,8 @@ document.getElementById("confirmDelete").onclick=()=>{
 };
 
 document.getElementById("saveBtn").onclick=()=>{
-  const date=document.getElementById("dateInput").value;
-  const time=document.getElementById("timeInput").value;
+  const date=document.getElementById("dateInput").value.replace(/_/g,"");
+  const time=document.getElementById("timeInput").value.replace(/_/g,"");
   const err=document.getElementById("editError");
   if (!validDate(date)) { err.textContent="Enter a valid date as MM/DD/YYYY."; return; }
   if (!validTime(time)) { err.textContent="Enter a valid 24-hour time as HH:MM."; return; }

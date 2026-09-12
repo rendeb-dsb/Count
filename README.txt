@@ -1,8 +1,8 @@
-Count PWA - Version v3
+Count PWA - Version v4
 
-Changes in v3:
-- Date/time separators are protected during Backspace/Delete editing.
-- Only dates occurring two or more times receive group colors; singleton dates stay white.
-- Table proportions and typography are aligned to the supplied Excedrin example.
-- Export now writes real CSV line breaks, fixing re-import of Count.csv.
-- Import accepts normal LF/CRLF CSV files and a UTF-8 BOM.
+Changes:
+- True fixed-position date/time masks. Slash and colon are permanent and cannot be deleted.
+- Backspace/Delete clears digits while preserving separators.
+- Only repeated dates (2+ records) receive group colors; singleton dates stay white.
+- Typography reduced to more closely match the supplied Excedrin screenshot, while Count and v4 retain their larger sizes.
+- CSV export/import fix retained.
