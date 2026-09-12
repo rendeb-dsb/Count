@@ -1,3 +1,3 @@
-Count PWA - Version v5
+Count PWA - Version v6
 
-Typography/layout revision based on the supplied Excedrin screenshot. Count and v5 remain at the accepted title/version sizes; all other UI text is reduced and Android sans-serif typography is used. Table columns are 25% radio, 50% date, 25% time. The v4 fixed date/time masks and CSV fixes are retained.
+The gray File menu bar is now the same CSS height as the gray list header. The File label remains vertically centered. The File popup menu is repositioned to match. All v5 functionality and other styling are retained.
