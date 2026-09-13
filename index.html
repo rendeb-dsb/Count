@@ -39,7 +39,7 @@
   }
   main { padding:22px 21px; }
   .list { width:100%; border-collapse:collapse; table-layout:fixed; }
-  .list th, .list td { padding:13px 12px; }
+  .list th, .list td { padding:0 8px; }
   .list thead th {
     background:#eee; border:1px solid #ccc; font-size:18px; font-weight:700;
     height:54px;
@@ -47,9 +47,9 @@
   .list .radioCol { width:25%; }
   .list .dateCol { width:50%; }
   .list .timeCol { width:25%; }
-  .list td { border-left:1px solid #ccc; border-right:1px solid #ccc; border-bottom:1px solid #ccc; height:54px; font-size:18px; }
+  .list td { border-left:1px solid #ccc; border-right:1px solid #ccc; border-bottom:1px solid #ccc; height:27px; line-height:27px; font-size:14px; }
   .list td:first-child { text-align:center; }
-  .list input[type="radio"] { width:34px; height:34px; accent-color:#777; margin:0; }
+  .list input[type="radio"] { width:18px; height:18px; accent-color:#777; margin:0; vertical-align:middle; }
   .empty { color:#555; padding:18px 4px; font-size:16px; }
   .screen { max-width:500px; margin:10px auto; }
   .screen h2 { margin:0 0 20px; font-size:24px; }
@@ -66,7 +66,7 @@
     header { height:160px; padding-left:32px; padding-right:32px; }
     h1 { font-size:54px; }
     .list thead th { font-size:18px; }
-    .list td { font-size:18px; }
+    .list td { font-size:14px; line-height:27px; }
     .list .radioCol { width:25%; }
     .list .dateCol { width:50%; }
     .list .timeCol { width:25%; }
@@ -76,7 +76,7 @@
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v6</div>
+  <div class="version">v7</div>
 </header>
 
 <nav>
