@@ -84,7 +84,7 @@
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v14</div>
+  <div class="version">v15</div>
 </header>
 
 <nav>
@@ -116,6 +116,7 @@
 
 <main id="statsScreen" class="stats-screen" hidden>
   <h2>Statistics</h2>
+  <div class="stats-line">Elapsed: <span id="statsElapsed">—</span></div>
   <div class="stats-line">Oldest: <span id="statsOldest">—</span></div>
   <div class="stats-line">Count: <span id="statsCount">0</span></div>
   <div class="stats-line">Average: <span id="statsAverage">0</span></div>
@@ -281,6 +282,28 @@ function showStats() {
   document.getElementById("listScreen").hidden=true;
   document.getElementById("editScreen").hidden=true;
   document.getElementById("statsScreen").hidden=false;
+
+  // Elapsed time since the most current date and time, in dd:hh:mm.
+  if (records.length) {
+    const latest=[...records].sort((a,b)=>{
+      const [am,ad,ay]=a.date.split("/").map(Number);
+      const [bm,bd,by]=b.date.split("/").map(Number);
+      const [ah,ami]=a.time.split(":").map(Number);
+      const [bh,bmi]=b.time.split(":").map(Number);
+      return new Date(by,bm-1,bd,bh,bmi) - new Date(ay,am-1,ad,ah,ami);
+    })[0];
+    const [lm,ld,ly]=latest.date.split("/").map(Number);
+    const [lh,lmin]=latest.time.split(":").map(Number);
+    const latestDateTime=new Date(ly,lm-1,ld,lh,lmin);
+    const diff=Math.max(0, Date.now()-latestDateTime.getTime());
+    const totalMinutes=Math.floor(diff/60000);
+    const days=Math.floor(totalMinutes/1440);
+    const hours=Math.floor((totalMinutes%1440)/60);
+    const minutes=totalMinutes%60;
+    document.getElementById("statsElapsed").textContent=`${String(days).padStart(2,"0")}:${String(hours).padStart(2,"0")}:${String(minutes).padStart(2,"0")}`;
+  } else {
+    document.getElementById("statsElapsed").textContent="—";
+  }
 
   // Oldest date in the List.
   const oldest=records.length ? [...records].sort((a,b)=>{
