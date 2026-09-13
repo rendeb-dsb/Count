@@ -16,12 +16,20 @@
   }
   h1 { margin:0; font-size:54px; line-height:1; font-weight:700; letter-spacing:-1px; }
   .version { font-size:18px; color:#666; margin-top:30px; }
-  nav { background:#eee; border-bottom:1px solid #bbb; height:54px; padding:0; }
-  details { width:100%; }
+  nav { background:#eee; border-bottom:1px solid #bbb; height:54px; padding:0; display:flex; align-items:stretch; }
+  details { width:auto; }
   details summary {
     list-style:none; cursor:pointer; height:54px; padding:14px 52px;
     font-size:24px; font-weight:700; user-select:none;
   }
+  #statsBtn {
+    height:54px; border:0; border-radius:0; background:#eee;
+    padding:0 28px; font-size:24px; font-weight:700;
+  }
+  #statsBtn:hover { background:#e5e5e5; }
+  .stats-screen { max-width:500px; margin:10px 21px; }
+  .stats-screen h2 { margin:0 0 20px; font-size:24px; }
+  .stats-line { margin:0 0 12px; font-size:18px; }
   details summary::-webkit-details-marker { display:none; }
   .menu {
     position:absolute; z-index:20; left:0; top:214px; width:310px;
@@ -76,7 +84,7 @@
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v9</div>
+  <div class="version">v10</div>
 </header>
 
 <nav>
@@ -93,6 +101,7 @@
       <button id="quitBtn">Quit</button>
     </div>
   </details>
+  <button id="statsBtn" type="button">Stats</button>
 </nav>
 
 <main id="listScreen">
@@ -102,6 +111,12 @@
     <tbody id="rows"></tbody>
   </table>
   <div id="empty" class="empty">No records stored.</div>
+</main>
+
+<main id="statsScreen" class="stats-screen" hidden>
+  <h2>Statistics</h2>
+  <div class="stats-line">Count: <span id="statsCount">0</span></div>
+  <div class="stats-line">Average: <span id="statsAverage">0</span></div>
 </main>
 
 <main id="editScreen" class="screen" hidden>
@@ -253,8 +268,21 @@ function renderList() {
 }
 function showList() {
   document.getElementById("editScreen").hidden=true;
+  document.getElementById("statsScreen").hidden=true;
   document.getElementById("listScreen").hidden=false;
   renderList();
+}
+function showStats() {
+  closeFileMenu();
+  document.getElementById("listScreen").hidden=true;
+  document.getElementById("editScreen").hidden=true;
+  document.getElementById("statsScreen").hidden=false;
+
+  document.getElementById("statsCount").textContent=records.length;
+  const counts=new Map();
+  for(const r of records) counts.set(r.date,(counts.get(r.date)||0)+1);
+  const average=counts.size ? records.length / counts.size : 0;
+  document.getElementById("statsAverage").textContent=average.toFixed(2);
 }
 function showEdit(mode,id=null) {
   document.getElementById("listScreen").hidden=true;
@@ -446,6 +474,7 @@ dateEl.addEventListener("blur", ()=>maskedBlur(dateEl,"date"));
 timeEl.addEventListener("blur", ()=>maskedBlur(timeEl,"time"));
 
 function closeFileMenu(){ const d=document.querySelector("details"); if(d) d.removeAttribute("open"); }
+document.getElementById("statsBtn").onclick=showStats;
 document.getElementById("addBtn").onclick=()=>{closeFileMenu();showEdit("Add");};
 document.getElementById("changeBtn").onclick=()=>{
   closeFileMenu();
