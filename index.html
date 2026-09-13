@@ -84,7 +84,7 @@
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v12</div>
+  <div class="version">v13</div>
 </header>
 
 <nav>
@@ -119,6 +119,7 @@
   <div class="stats-line">Count: <span id="statsCount">0</span></div>
   <div class="stats-line">Average: <span id="statsAverage">0</span></div>
   <div class="stats-line">Frequency: <span id="statsFrequency">0 (0)</span></div>
+  <div class="stats-line">Frequency of Gaps: <span id="statsGapFrequency">0 (0)</span></div>
 </main>
 
 <main id="editScreen" class="screen" hidden>
@@ -295,6 +296,29 @@ function showStats() {
     .map(([value,count])=>`${value} (${count})`)
     .join("     ");
   document.getElementById("statsFrequency").textContent=frequencyText || "0 (0)";
+
+  // Frequency of Gaps: for each pair of consecutive unique dates,
+  // count the missing calendar days between them.
+  const uniqueDates=[...counts.keys()].sort((a,b)=>{
+    const [am,ad,ay]=a.split("/").map(Number);
+    const [bm,bd,by]=b.split("/").map(Number);
+    return new Date(ay,am-1,ad) - new Date(by,bm-1,bd);
+  });
+  const gapFrequency=new Map();
+  for(let i=1;i<uniqueDates.length;i++){
+    const [pm,pd,py]=uniqueDates[i-1].split("/").map(Number);
+    const [cm,cd,cy]=uniqueDates[i].split("/").map(Number);
+    const previous=new Date(py,pm-1,pd);
+    const current=new Date(cy,cm-1,cd);
+    const days=Math.round((current-previous)/86400000);
+    const gap=days-1;
+    if(gap>0) gapFrequency.set(gap,(gapFrequency.get(gap)||0)+1);
+  }
+  const gapText=[...gapFrequency.entries()]
+    .sort((a,b)=>a[0]-b[0])
+    .map(([value,count])=>`${value} (${count})`)
+    .join("     ");
+  document.getElementById("statsGapFrequency").textContent=gapText || "0 (0)";
 }
 function showEdit(mode,id=null) {
   document.getElementById("listScreen").hidden=true;
