@@ -22,11 +22,11 @@
     list-style:none; cursor:pointer; height:54px; padding:14px 52px;
     font-size:24px; font-weight:700; user-select:none;
   }
-  #statsBtn {
+  #statsBtn, #listBtn {
     height:54px; border:0; border-radius:0; background:#eee;
     padding:0 28px; font-size:24px; font-weight:700;
   }
-  #statsBtn:hover { background:#e5e5e5; }
+  #statsBtn:hover, #listBtn:hover { background:#e5e5e5; }
   .stats-screen { max-width:500px; margin:10px 21px; }
   .stats-screen h2 { margin:0 0 20px; font-size:24px; }
   .stats-line { margin:0 0 12px; font-size:18px; }
@@ -84,7 +84,7 @@
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v11</div>
+  <div class="version">v12</div>
 </header>
 
 <nav>
@@ -101,6 +101,7 @@
       <button id="quitBtn">Quit</button>
     </div>
   </details>
+  <button id="listBtn" type="button">List</button>
   <button id="statsBtn" type="button">Stats</button>
 </nav>
 
@@ -485,6 +486,7 @@ dateEl.addEventListener("blur", ()=>maskedBlur(dateEl,"date"));
 timeEl.addEventListener("blur", ()=>maskedBlur(timeEl,"time"));
 
 function closeFileMenu(){ const d=document.querySelector("details"); if(d) d.removeAttribute("open"); }
+document.getElementById("listBtn").onclick=showList;
 document.getElementById("statsBtn").onclick=showStats;
 document.getElementById("addBtn").onclick=()=>{closeFileMenu();showEdit("Add");};
 document.getElementById("changeBtn").onclick=()=>{
