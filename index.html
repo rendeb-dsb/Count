@@ -84,7 +84,7 @@
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v13</div>
+  <div class="version">v14</div>
 </header>
 
 <nav>
@@ -116,6 +116,7 @@
 
 <main id="statsScreen" class="stats-screen" hidden>
   <h2>Statistics</h2>
+  <div class="stats-line">Oldest: <span id="statsOldest">—</span></div>
   <div class="stats-line">Count: <span id="statsCount">0</span></div>
   <div class="stats-line">Average: <span id="statsAverage">0</span></div>
   <div class="stats-line">Frequency: <span id="statsFrequency">0 (0)</span></div>
@@ -280,6 +281,14 @@ function showStats() {
   document.getElementById("listScreen").hidden=true;
   document.getElementById("editScreen").hidden=true;
   document.getElementById("statsScreen").hidden=false;
+
+  // Oldest date in the List.
+  const oldest=records.length ? [...records].sort((a,b)=>{
+    const [am,ad,ay]=a.date.split("/").map(Number);
+    const [bm,bd,by]=b.date.split("/").map(Number);
+    return new Date(ay,am-1,ad) - new Date(by,bm-1,bd);
+  })[0].date : "—";
+  document.getElementById("statsOldest").textContent=oldest;
 
   document.getElementById("statsCount").textContent=records.length;
   const counts=new Map();
