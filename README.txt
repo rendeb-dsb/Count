@@ -1,3 +1,3 @@
-Count PWA - Version v6
+Count PWA - Version v11
 
-The gray File menu bar is now the same CSS height as the gray list header. The File label remains vertically centered. The File popup menu is repositioned to match. All v5 functionality and other styling are retained.
+Adds a Frequency row to Statistics. For each unique date, the app counts its rows, then tallies how many unique dates have each count. Values are displayed in increasing order as value (count), separated by several spaces. All v10 functionality and styling are retained.

@@ -84,7 +84,7 @@
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v10</div>
+  <div class="version">v11</div>
 </header>
 
 <nav>
@@ -117,6 +117,7 @@
   <h2>Statistics</h2>
   <div class="stats-line">Count: <span id="statsCount">0</span></div>
   <div class="stats-line">Average: <span id="statsAverage">0</span></div>
+  <div class="stats-line">Frequency: <span id="statsFrequency">0 (0)</span></div>
 </main>
 
 <main id="editScreen" class="screen" hidden>
@@ -283,6 +284,16 @@ function showStats() {
   for(const r of records) counts.set(r.date,(counts.get(r.date)||0)+1);
   const average=counts.size ? records.length / counts.size : 0;
   document.getElementById("statsAverage").textContent=average.toFixed(2);
+
+  // Frequency distribution: for each unique date, count its rows.
+  // Then tally how many unique dates have each row-count value.
+  const frequency=new Map();
+  for (const count of counts.values()) frequency.set(count,(frequency.get(count)||0)+1);
+  const frequencyText=[...frequency.entries()]
+    .sort((a,b)=>a[0]-b[0])
+    .map(([value,count])=>`${value} (${count})`)
+    .join("     ");
+  document.getElementById("statsFrequency").textContent=frequencyText || "0 (0)";
 }
 function showEdit(mode,id=null) {
   document.getElementById("listScreen").hidden=true;
