@@ -53,6 +53,7 @@
     height:27px;
   }
   .list .radioCol { width:90px; }
+  .list .dayCol { width:40px; }
   .list .dateCol { width:110px; }
   .list .timeCol { width:70px; }
   .list td { border-left:1px solid #ccc; border-right:1px solid #ccc; border-bottom:1px solid #ccc; height:27px; line-height:27px; font-size:14px; }
@@ -76,6 +77,7 @@
     .list thead th { font-size:14px; }
     .list td { font-size:14px; line-height:27px; }
     .list .radioCol { width:90px; }
+    .list .dayCol { width:40px; }
     .list .dateCol { width:110px; }
     .list .timeCol { width:70px; }
   }
@@ -84,7 +86,7 @@
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v15</div>
+  <div class="version">v16</div>
 </header>
 
 <nav>
@@ -107,8 +109,8 @@
 
 <main id="listScreen">
   <table class="list">
-    <colgroup><col class="radioCol"><col class="dateCol"><col class="timeCol"></colgroup>
-    <thead><tr><th></th><th>Date</th><th>Time</th></tr></thead>
+    <colgroup><col class="radioCol"><col class="dayCol"><col class="dateCol"><col class="timeCol"></colgroup>
+    <thead><tr><th></th><th>Day</th><th>Date</th><th>Time</th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
   <div id="empty" class="empty">No records stored.</div>
@@ -266,9 +268,13 @@ function renderList() {
     radio.addEventListener("change",()=>selectedId=r.id);
 
     const td0=document.createElement("td"); td0.appendChild(radio);
-    const td1=document.createElement("td"); td1.textContent=r.date;
-    const td2=document.createElement("td"); td2.textContent=r.time;
-    tr.append(td0,td1,td2); tbody.appendChild(tr);
+    const td1=document.createElement("td");
+    const [m,d,y]=r.date.split("/").map(Number);
+    const dayNames=["Su","Mo","Tu","We","Th","Fr","Sa"];
+    td1.textContent=dayNames[new Date(y,m-1,d).getDay()];
+    const td2=document.createElement("td"); td2.textContent=r.date;
+    const td3=document.createElement("td"); td3.textContent=r.time;
+    tr.append(td0,td1,td2,td3); tbody.appendChild(tr);
   }
 }
 function showList() {
