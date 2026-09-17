@@ -86,7 +86,7 @@
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v16</div>
+  <div class="version">v18</div>
 </header>
 
 <nav>
@@ -176,18 +176,88 @@
 
 <script>
 const STORAGE_KEY = "count.records.v1";
-let records = loadRecords();
+const DB_NAME = "CountDB";
+const DB_VERSION = 1;
+const STORE_NAME = "records";
+let records = [];
 let selectedId = null;
 let editingId = null;
+let dbPromise;
 
-function loadRecords() {
-  try {
-    const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    return Array.isArray(data) ? data : [];
-  } catch { return []; }
+function openDB() {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: "id" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  return dbPromise;
 }
-function saveRecords() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+
+function idbGetAll() {
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const req = tx.objectStore(STORE_NAME).getAll();
+    req.onsuccess = () => resolve(Array.isArray(req.result) ? req.result : []);
+    req.onerror = () => reject(req.error);
+  }));
+}
+
+function idbReplaceAll(items) {
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    store.clear();
+    for (const item of items) store.put(item);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error("Database update failed."));
+  }));
+}
+
+function idbPut(item) {
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).put(item);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error("Database update failed."));
+  }));
+}
+
+function idbDelete(id) {
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).delete(id);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error("Database update failed."));
+  }));
+}
+
+async function initializeData() {
+  let stored = await idbGetAll();
+  if (stored.length === 0) {
+    try {
+      const legacy = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      if (Array.isArray(legacy) && legacy.length) {
+        stored = legacy.filter(r => r && r.id && r.date && r.time);
+        await idbReplaceAll(stored);
+        // Keep the legacy copy as a migration backup; IndexedDB is authoritative from now on.
+      }
+    } catch {}
+  }
+  records = stored;
+}
+
+async function persistAll() {
+  await idbReplaceAll(records);
 }
 function sortRecords() {
   records.sort((a,b) => {
@@ -548,7 +618,7 @@ dateEl.addEventListener("blur", ()=>maskedBlur(dateEl,"date"));
 timeEl.addEventListener("blur", ()=>maskedBlur(timeEl,"time"));
 
 function closeFileMenu(){ const d=document.querySelector("details"); if(d) d.removeAttribute("open"); }
-document.getElementById("listBtn").onclick=showList;
+document.getElementById("listBtn").onclick=()=>{closeFileMenu();showList();};
 document.getElementById("statsBtn").onclick=showStats;
 document.getElementById("addBtn").onclick=()=>{closeFileMenu();showEdit("Add");};
 document.getElementById("changeBtn").onclick=()=>{
@@ -562,13 +632,21 @@ document.getElementById("deleteBtn").onclick=()=>{
   document.getElementById("deleteModal").style.display="flex";
 };
 document.getElementById("cancelDelete").onclick=()=>document.getElementById("deleteModal").style.display="none";
-document.getElementById("confirmDelete").onclick=()=>{
-  records=records.filter(r=>r.id!==selectedId);
-  selectedId=null; saveRecords();
-  document.getElementById("deleteModal").style.display="none"; showList();
+document.getElementById("confirmDelete").onclick=async ()=>{
+  const id=selectedId;
+  records=records.filter(r=>r.id!==id);
+  selectedId=null;
+  try {
+    await idbDelete(id);
+    document.getElementById("deleteModal").style.display="none"; showList();
+  } catch {
+    document.getElementById("deleteModal").style.display="none";
+    document.getElementById("editError").textContent="Unable to delete the record.";
+    showList();
+  }
 };
 
-document.getElementById("saveBtn").onclick=()=>{
+document.getElementById("saveBtn").onclick=async ()=>{
   const date=document.getElementById("dateInput").value.replace(/_/g,"");
   const time=document.getElementById("timeInput").value.replace(/_/g,"");
   const err=document.getElementById("editError");
@@ -581,7 +659,12 @@ document.getElementById("saveBtn").onclick=()=>{
     const r=records.find(x=>x.id===editingId);
     if(r){r.date=date;r.time=time;} selectedId=editingId;
   }
-  saveRecords(); showList();
+  try {
+    await persistAll();
+    showList();
+  } catch {
+    err.textContent="Unable to save the record.";
+  }
 };
 
 document.getElementById("cancelBtn").onclick=()=>{ editingId=null; showList(); };
@@ -608,19 +691,43 @@ document.getElementById("confirmImport").onclick=()=>{
   const err=document.getElementById("importError");
   if(!file){err.textContent="Please choose a CSV file.";return;}
   const reader=new FileReader();
-  reader.onload=()=>{
+  reader.onload=async ()=>{
     try {
-      const text = reader.result.replace(/^\uFEFF/, "");
-    const lines=text.replace(/\r/g,"").split("\n").filter(x=>x.trim()!=="");
-      const start=/^\s*date\s*,\s*time\s*$/i.test(lines[0]) ? 1 : 0;
+      const text = String(reader.result || "").replace(/^\uFEFF/, "");
+      const lines=text.replace(/\r/g,"").split("\n").filter(x=>x.trim()!=="");
+      if (!lines.length) throw new Error("The CSV file is empty.");
+
+      const hasHeader=/^\s*date\s*,\s*time\s*$/i.test(lines[0]);
+      const start=hasHeader ? 1 : 0;
       const imported=[];
+      const now=new Date();
+
       for(let i=start;i<lines.length;i++){
-        const parts=lines[i].split(",");
-        if(parts.length<2 || !validDate(parts[0].trim()) || !validTime(parts[1].trim()))
-          throw new Error("Invalid Date or Time on CSV line "+(i+1)+".");
-        imported.push({id:crypto.randomUUID(),date:parts[0].trim(),time:parts[1].trim()});
+        const row=lines[i];
+        const recordNumber=i-start+1;
+        const parts=row.split(",");
+        if(parts.length!==2){
+          throw new Error(`Record ${recordNumber}: ${row} — invalid field count; expected exactly 2 fields (Date, Time).`);
+        }
+        const date=parts[0].trim();
+        const time=parts[1].trim();
+        if(!validDate(date)){
+          throw new Error(`Record ${recordNumber}: ${row} — invalid Date element "${parts[0].trim()}"; expected MM/DD/YYYY with a valid calendar date.`);
+        }
+        if(!validTime(time)){
+          throw new Error(`Record ${recordNumber}: ${row} — invalid Time element "${parts[1].trim()}"; expected 24-hour HH:MM.`);
+        }
+        const [m,d,y]=date.split("/").map(Number);
+        const [h,mi]=time.split(":").map(Number);
+        const dt=new Date(y,m-1,d,h,mi);
+        if(dt>now) continue;
+        imported.push({id:crypto.randomUUID(),date,time});
       }
-      records=imported; selectedId=records[0]?.id || null; saveRecords();
+
+      // All-or-nothing: no stored data is changed until every CSV record validates.
+      records=imported;
+      selectedId=records[0]?.id || null;
+      await persistAll();
       document.getElementById("importModal").style.display="none"; showList();
     } catch(e){err.textContent=e.message || "Import failed."; }
   };
@@ -630,8 +737,7 @@ document.getElementById("confirmImport").onclick=()=>{
 document.getElementById("quitBtn").onclick=()=>{closeFileMenu();document.getElementById("quitModal").style.display="flex";};
 document.getElementById("closeQuit").onclick=()=>document.getElementById("quitModal").style.display="none";
 
-renderList();
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+initializeData().then(()=>renderList()).catch(()=>renderList());
 </script>
 </body>
 </html>
