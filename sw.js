@@ -1,4 +1,4 @@
-const CACHE_NAME = "count-pwa-v19";
+const CACHE_NAME = "count-pwa-v20";
 const APP_FILES = ["./", "./index.html", "./manifest.json"];
 
 self.addEventListener("install", event => {
