@@ -11,12 +11,12 @@
   * { box-sizing:border-box; }
   body { margin:0; background:#fff; color:#111; }
   header {
-    height:120px; padding:27px 32px 0; border-bottom:1px solid #bbb;
+    height:75px; padding:27px 32px 0; border-bottom:0;
     display:flex; justify-content:space-between; align-items:flex-start;
   }
   h1 { margin:0; font-size:41px; line-height:1; font-weight:700; letter-spacing:-1px; }
   .version { font-size:18px; color:#666; margin-top:30px; }
-  .since-new { font-size:16px; margin:0; padding:2px 32px 3px; color:#111; }
+  .since-new { font-size:16px; margin:0; padding:0 32px 3px; color:#111; }
   details.action-disabled summary { color:#888; cursor:default; pointer-events:none; }
   nav { background:#eee; border-bottom:1px solid #bbb; height:45px; padding:0; display:flex; align-items:stretch; }
   details { width:auto; }
@@ -39,8 +39,8 @@
     display:flex; flex-direction:column; gap:0;
   }
   .menu button {
-    width:100%; height:22.5px; border:0; border-radius:0; background:#eee;
-    text-align:left; padding:0 14px; font-size:15px;
+    width:100%; height:28.125px; border:0; border-radius:0; background:#eee;
+    text-align:left; padding:0 14px; font-size:18.75px;
   }
   .menu button:hover { background:#e5e5e5; }
   .menu button:disabled {
@@ -88,7 +88,7 @@
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v24</div>
+  <div class="version">v25</div>
 </header>
 <div class="since-new">Time since last new record: <span id="timeSinceNew">—</span></div>
 
