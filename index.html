@@ -16,6 +16,8 @@
   }
   h1 { margin:0; font-size:54px; line-height:1; font-weight:700; letter-spacing:-1px; }
   .version { font-size:18px; color:#666; margin-top:30px; }
+  .since-new { font-size:16px; margin-top:14px; color:#111; }
+  details.action-disabled summary { color:#888; cursor:default; pointer-events:none; }
   nav { background:#eee; border-bottom:1px solid #bbb; height:54px; padding:0; display:flex; align-items:stretch; }
   details { width:auto; }
   details summary {
@@ -85,13 +87,16 @@
 </head>
 <body>
 <header>
-  <h1>Count</h1>
-  <div class="version">v20</div>
+  <div>
+    <h1>Count</h1>
+    <div class="since-new">Time since last new record: <span id="timeSinceNew">—</span></div>
+  </div>
+  <div class="version">v21</div>
 </header>
 
 <nav>
-  <details>
-    <summary>Actions</summary>
+  <details id="actionsMenu">
+    <summary id="actionsSummary">Actions</summary>
     <div class="menu">
       <button id="addBtn">Add</button>
       <button id="changeBtn">Change</button>
@@ -183,6 +188,7 @@ let records = [];
 let selectedId = null;
 let editingId = null;
 let dbPromise;
+let timeSinceTimer=null;
 
 function openDB() {
   if (dbPromise) return dbPromise;
@@ -308,6 +314,43 @@ function dateKey(v) {
   const [m,d,y]=v.split("/");
   return y + m + d;
 }
+function elapsedDDHHMM(fromTime) {
+  if (!fromTime) return "—";
+  const diff = Math.max(0, Date.now() - new Date(fromTime).getTime());
+  const totalMinutes = Math.floor(diff / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(days).padStart(2,"0")}:${String(hours).padStart(2,"0")}:${String(minutes).padStart(2,"0")}`;
+}
+function getLastNewRecordTime() {
+  const withCreated = records.filter(r => r.createdAt);
+  if (withCreated.length) return Math.max(...withCreated.map(r => new Date(r.createdAt).getTime()));
+  // For records created before v21, use their stored Date/Time as the best available timestamp.
+  if (!records.length) return null;
+  return Math.max(...records.map(r => {
+    const [m,d,y]=r.date.split("/").map(Number);
+    const [h,mi]=r.time.split(":").map(Number);
+    return new Date(y,m-1,d,h,mi).getTime();
+  }));
+}
+function updateTimeSinceNewRecord() {
+  const t=getLastNewRecordTime();
+  document.getElementById("timeSinceNew").textContent=elapsedDDHHMM(t);
+}
+function startTimeSinceTimer() {
+  updateTimeSinceNewRecord();
+  if (timeSinceTimer) clearInterval(timeSinceTimer);
+  timeSinceTimer=setInterval(updateTimeSinceNewRecord,60000);
+}
+function setActionsEnabled(enabled) {
+  const details=document.getElementById("actionsMenu");
+  const summary=document.getElementById("actionsSummary");
+  details.classList.toggle("action-disabled",!enabled);
+  summary.setAttribute("aria-disabled", String(!enabled));
+  details.querySelectorAll(".menu button").forEach(btn=>btn.disabled=!enabled);
+  if (!enabled) details.removeAttribute("open");
+}
 function renderList() {
   sortRecords();
   const tbody=document.getElementById("rows");
@@ -348,6 +391,7 @@ function renderList() {
   }
 }
 function showList() {
+  setActionsEnabled(true);
   document.getElementById("editScreen").hidden=true;
   document.getElementById("statsScreen").hidden=true;
   document.getElementById("listScreen").hidden=false;
@@ -429,6 +473,7 @@ function showStats() {
   document.getElementById("statsGapFrequency").textContent=gapText || "0 (0)";
 }
 function showEdit(mode,id=null) {
+  setActionsEnabled(false);
   document.getElementById("listScreen").hidden=true;
   document.getElementById("editScreen").hidden=false;
   document.getElementById("editTitle").textContent=mode;
@@ -653,7 +698,7 @@ document.getElementById("saveBtn").onclick=async ()=>{
   if (!validDate(date)) { err.textContent="Enter a valid date as MM/DD/YYYY."; return; }
   if (!validTime(time)) { err.textContent="Enter a valid 24-hour time as HH:MM."; return; }
   if (editingId===null) {
-    const r={id:crypto.randomUUID(),date,time};
+    const r={id:crypto.randomUUID(),date,time,createdAt:new Date().toISOString()};
     records.push(r); selectedId=r.id;
   } else {
     const r=records.find(x=>x.id===editingId);
@@ -737,7 +782,7 @@ document.getElementById("confirmImport").onclick=()=>{
 document.getElementById("quitBtn").onclick=()=>{closeFileMenu();document.getElementById("quitModal").style.display="flex";};
 document.getElementById("closeQuit").onclick=()=>document.getElementById("quitModal").style.display="none";
 
-initializeData().then(()=>renderList()).catch(()=>renderList());
+initializeData().then(()=>{renderList();startTimeSinceTimer();}).catch(()=>{renderList();startTimeSinceTimer();});
 </script>
 </body>
 </html>
