@@ -63,6 +63,10 @@
   .list input[type="radio"] { width:18px; height:18px; accent-color:#777; margin:0; vertical-align:middle; }
   .empty { color:#555; padding:18px 4px; font-size:16px; }
   .screen { max-width:500px; margin:10px auto; }
+  .date-time-row { display:flex; gap:16px; }
+  .date-time-field { flex:1 1 0; min-width:0; }
+  .date-time-field label { margin-top:18px; }
+  .date-time-field .masked { width:100%; }
   .screen h2 { margin:0 0 20px; font-size:24px; }
   label { display:block; margin:18px 0 6px; font-weight:700; font-size:16px; }
   .masked { width:100%; font-size:20px; padding:10px; letter-spacing:1px; }
@@ -88,7 +92,7 @@
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v25</div>
+  <div class="version">v26</div>
 </header>
 <div class="since-new">Time since last new record: <span id="timeSinceNew">—</span></div>
 
@@ -131,13 +135,16 @@
 
 <main id="editScreen" class="screen" hidden>
   <h2 id="editTitle">Add</h2>
-  <label for="dateInput">Date</label>
-  <input id="dateInput" class="masked" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="__/__/____" aria-label="Date">
-  <div class="hint">MM/DD/YYYY</div>
-
-  <label for="timeInput">Time</label>
-  <input id="timeInput" class="masked" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="__:__" aria-label="Time">
-  <div class="hint">24-hour time, HH:MM</div>
+  <div class="date-time-row">
+    <div class="date-time-field">
+      <label for="dateInput">Date</label>
+      <input id="dateInput" class="masked" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="__/__/____" aria-label="Date">
+    </div>
+    <div class="date-time-field">
+      <label for="timeInput">Time</label>
+      <input id="timeInput" class="masked" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="__:__" aria-label="Time">
+    </div>
+  </div>
 
   <div id="editError" class="error"></div>
   <div class="actions">
@@ -174,6 +181,14 @@
     <h3>Quit</h3>
     <p>The supporting page must be manually closed.</p>
     <div class="actions"><button id="closeQuit">OK</button></div>
+  </div>
+</div>
+
+<div id="messageModal" class="modal-backdrop">
+  <div class="modal">
+    <h3>Count</h3>
+    <p id="messageText"></p>
+    <div class="actions"><button id="closeMessage">OK</button></div>
   </div>
 </div>
 
@@ -660,6 +675,15 @@ timeEl.addEventListener("paste", e=>maskedPaste(e,"time"));
 dateEl.addEventListener("blur", ()=>maskedBlur(dateEl,"date"));
 timeEl.addEventListener("blur", ()=>maskedBlur(timeEl,"time"));
 
+function showMessage(message) {
+  document.getElementById("messageText").textContent = message;
+  document.getElementById("messageModal").style.display = "flex";
+}
+function closeMessage() {
+  document.getElementById("messageModal").style.display = "none";
+}
+document.getElementById("closeMessage").onclick=closeMessage;
+
 function closeFileMenu(){ const d=document.querySelector("details"); if(d) d.removeAttribute("open"); }
 document.addEventListener("pointerdown", e=>{
   const d=document.getElementById("actionsMenu");
@@ -670,12 +694,12 @@ document.getElementById("statsBtn").onclick=showStats;
 document.getElementById("addBtn").onclick=()=>{closeFileMenu();showEdit("Add");};
 document.getElementById("changeBtn").onclick=()=>{
   closeFileMenu();
-  if (!selectedRecord()) return alert("Please select a record.");
+  if (!selectedRecord()) return showMessage("Please select a record.");
   showEdit("Change",selectedId);
 };
 document.getElementById("deleteBtn").onclick=()=>{
   closeFileMenu();
-  if (!selectedRecord()) return alert("Please select a record.");
+  if (!selectedRecord()) return showMessage("Please select a record.");
   document.getElementById("deleteModal").style.display="flex";
 };
 document.getElementById("cancelDelete").onclick=()=>document.getElementById("deleteModal").style.display="none";
