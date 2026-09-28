@@ -92,7 +92,7 @@
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v28</div>
+  <div class="version">v27</div>
 </header>
 <div class="since-new">Time since last new record: <span id="timeSinceNew">—</span></div>
 
@@ -327,9 +327,9 @@ function dateKey(v) {
   const [m,d,y]=v.split("/");
   return y + m + d;
 }
-function elapsedDDHHMM(fromTimeMs) {
-  if (fromTimeMs == null || !Number.isFinite(Number(fromTimeMs))) return "—";
-  const diff = Math.max(0, Date.now() - Number(fromTimeMs));
+function elapsedDDHHMM(fromTime) {
+  if (!fromTime) return "—";
+  const diff = Math.max(0, Date.now() - new Date(fromTime).getTime());
   const totalMinutes = Math.floor(diff / 60000);
   const days = Math.floor(totalMinutes / 1440);
   const hours = Math.floor((totalMinutes % 1440) / 60);
@@ -337,8 +337,6 @@ function elapsedDDHHMM(fromTimeMs) {
   return `${String(days).padStart(2,"0")}:${String(hours).padStart(2,"0")}:${String(minutes).padStart(2,"0")}`;
 }
 function getLastNewRecordTime() {
-  const withCreatedMs = records.filter(r => Number.isFinite(Number(r.createdAtMs)));
-  if (withCreatedMs.length) return Math.max(...withCreatedMs.map(r => Number(r.createdAtMs)));
   const withCreated = records.filter(r => r.createdAt);
   if (withCreated.length) return Math.max(...withCreated.map(r => new Date(r.createdAt).getTime()));
   // For records created before v21, use their stored Date/Time as the best available timestamp.
@@ -726,8 +724,7 @@ document.getElementById("saveBtn").onclick=async ()=>{
   if (!validDate(date)) { err.textContent="Enter a valid date as MM/DD/YYYY."; return; }
   if (!validTime(time)) { err.textContent="Enter a valid 24-hour time as HH:MM."; return; }
   if (editingId===null) {
-    const phoneTimestampMs = Date.now();
-    const r={id:crypto.randomUUID(),date,time,createdAtMs:phoneTimestampMs,createdAt:new Date(phoneTimestampMs).toISOString()};
+    const r={id:crypto.randomUUID(),date,time,createdAt:new Date().toISOString()};
     records.push(r); selectedId=r.id;
   } else {
     const r=records.find(x=>x.id===editingId);
