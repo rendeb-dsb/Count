@@ -92,7 +92,7 @@
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v29</div>
+  <div class="version">v30</div>
 </header>
 <div class="since-new">Time since last new record: <span id="timeSinceNew">—</span></div>
 
@@ -111,6 +111,7 @@
     </div>
   </details>
   <button id="listBtn" type="button">List</button>
+  <button id="summaryBtn" type="button">Summary</button>
   <button id="statsBtn" type="button">Stats</button>
 </nav>
 
@@ -121,6 +122,15 @@
     <tbody id="rows"></tbody>
   </table>
   <div id="empty" class="empty">No records stored.</div>
+</main>
+
+<main id="summaryScreen" hidden>
+  <table class="list" id="summaryTable">
+    <colgroup><col class="dayCol"><col class="dateCol"><col style="width:80px"></colgroup>
+    <thead><tr><th>Day</th><th>Date</th><th>Count</th></tr></thead>
+    <tbody id="summaryRows"></tbody>
+  </table>
+  <div id="summaryEmpty" class="empty" hidden>No records stored.</div>
 </main>
 
 <main id="statsScreen" class="stats-screen" hidden>
@@ -337,14 +347,15 @@ function elapsedDDHHMM(fromTimeMs) {
   return `${String(days).padStart(2,"0")}:${String(hours).padStart(2,"0")}:${String(minutes).padStart(2,"0")}`;
 }
 function getLastNewRecordTime() {
-  // Use the newest Date/Time value in the List, not the record's creation timestamp.
+  // The List is ordered by the Date and Time values stored in each record.
+  // Use the first (newest) record's displayed values, not its database creation time.
   if (!records.length) return null;
-  const timestamps = records.map(r => {
-    const [m,d,y] = r.date.split("/").map(Number);
-    const [h,mi] = r.time.split(":").map(Number);
-    return new Date(y, m-1, d, h, mi, 0, 0).getTime();
-  }).filter(Number.isFinite);
-  return timestamps.length ? Math.max(...timestamps) : null;
+  sortRecords();
+  const newest = records[0];
+  const [m,d,y] = newest.date.split("/").map(Number);
+  const [h,mi] = newest.time.split(":").map(Number);
+  const value = new Date(y, m-1, d, h, mi, 0, 0).getTime();
+  return Number.isFinite(value) ? value : null;
 }
 function updateTimeSinceNewRecord() {
   const t=getLastNewRecordTime();
@@ -406,12 +417,48 @@ function showList() {
   setActionsEnabled(true);
   document.getElementById("editScreen").hidden=true;
   document.getElementById("statsScreen").hidden=true;
+  document.getElementById("summaryScreen").hidden=true;
   document.getElementById("listScreen").hidden=false;
   renderList();
+}
+function showSummary() {
+  closeFileMenu();
+  document.getElementById("listScreen").hidden=true;
+  document.getElementById("statsScreen").hidden=true;
+  document.getElementById("editScreen").hidden=true;
+  document.getElementById("summaryScreen").hidden=false;
+  const tbody=document.getElementById("summaryRows");
+  tbody.innerHTML="";
+  if (!records.length) {
+    document.getElementById("summaryEmpty").hidden=false;
+    return;
+  }
+  document.getElementById("summaryEmpty").hidden=true;
+  const counts=new Map();
+  for (const r of records) counts.set(r.date,(counts.get(r.date)||0)+1);
+  const dates=[...counts.keys()].map(v=>{
+    const [m,d,y]=v.split("/").map(Number);
+    return {value:v, date:new Date(y,m-1,d)};
+  }).sort((a,b)=>b.date-a.date);
+  // Include every calendar date between newest and oldest, including dates with no records.
+  const newest=new Date(dates[0].date.getFullYear(),dates[0].date.getMonth(),dates[0].date.getDate());
+  const oldest=new Date(dates[dates.length-1].date.getFullYear(),dates[dates.length-1].date.getMonth(),dates[dates.length-1].date.getDate());
+  const dayNames=["Su","Mo","Tu","We","Th","Fr","Sa"];
+  for (let d=new Date(newest); d>=oldest; d.setDate(d.getDate()-1)) {
+    const key=String(d.getMonth()+1).padStart(2,"0")+"/"+String(d.getDate()).padStart(2,"0")+"/"+d.getFullYear();
+    const count=counts.get(key)||0;
+    const tr=document.createElement("tr");
+    if (!count) { tr.style.color="red"; tr.style.fontWeight="700"; }
+    const day=document.createElement("td"); day.textContent=dayNames[d.getDay()];
+    const date=document.createElement("td"); date.textContent=key;
+    const total=document.createElement("td"); total.textContent=count ? String(count) : "X";
+    tr.append(day,date,total); tbody.appendChild(tr);
+  }
 }
 function showStats() {
   closeFileMenu();
   document.getElementById("listScreen").hidden=true;
+  document.getElementById("summaryScreen").hidden=true;
   document.getElementById("editScreen").hidden=true;
   document.getElementById("statsScreen").hidden=false;
 
@@ -670,6 +717,7 @@ document.addEventListener("pointerdown", e=>{
   if(d && d.open && !d.contains(e.target)) d.removeAttribute("open");
 });
 document.getElementById("listBtn").onclick=()=>{closeFileMenu();showList();};
+document.getElementById("summaryBtn").onclick=showSummary;
 document.getElementById("statsBtn").onclick=showStats;
 document.getElementById("addBtn").onclick=()=>{closeFileMenu();showEdit("Add");};
 document.getElementById("changeBtn").onclick=()=>{
