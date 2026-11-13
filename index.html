@@ -32,6 +32,14 @@
   .stats-screen { max-width:500px; margin:10px 21px; }
   .stats-screen h2 { margin:0 0 20px; font-size:24px; }
   .stats-line { margin:0 0 12px; font-size:18px; }
+  .monthly-chart { margin-top:24px; width:100%; }
+  .monthly-chart h3 { font-size:19px; margin:0 0 8px; }
+  .monthly-chart svg { display:block; width:100%; height:auto; overflow:visible; }
+  .chart-legend { display:flex; flex-wrap:wrap; gap:8px 18px; margin:10px 0 0; font-size:14px; }
+  .chart-legend span { display:inline-flex; align-items:center; gap:6px; }
+  .chart-swatch { width:22px; height:4px; border-radius:2px; display:inline-block; }
+  .chart-empty { font-size:15px; color:#555; }
+
   details summary::-webkit-details-marker { display:none; }
   .menu {
     position:absolute; z-index:20; left:0; top:165px; width:155px;
@@ -92,7 +100,7 @@
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v30</div>
+  <div class="version">v31</div>
 </header>
 <div class="since-new">Time since last new record: <span id="timeSinceNew">—</span></div>
 
@@ -141,6 +149,11 @@
   <div class="stats-line">Average: <span id="statsAverage">0</span></div>
   <div class="stats-line">Frequency: <span id="statsFrequency">0 (0)</span></div>
   <div class="stats-line">Frequency of Gaps: <span id="statsGapFrequency">0 (0)</span></div>
+  <section class="monthly-chart" aria-label="Monthly counts by year">
+    <h3>Monthly Count by Year</h3>
+    <div id="monthlyGraph"></div>
+    <div id="monthlyLegend" class="chart-legend"></div>
+  </section>
 </main>
 
 <main id="editScreen" class="screen" hidden>
@@ -455,6 +468,71 @@ function showSummary() {
     tr.append(day,date,total); tbody.appendChild(tr);
   }
 }
+function renderMonthlyGraph() {
+  const host=document.getElementById("monthlyGraph");
+  const legend=document.getElementById("monthlyLegend");
+  host.replaceChildren(); legend.replaceChildren();
+  const yearly=new Map();
+  for (const record of records) {
+    const parts=record.date.split("/").map(Number);
+    const month=parts[0], year=parts[2];
+    if (!Number.isInteger(year) || month<1 || month>12) continue;
+    if (!yearly.has(year)) yearly.set(year,Array(12).fill(0));
+    yearly.get(year)[month-1]++;
+  }
+  if (!yearly.size) {
+    const empty=document.createElement("div");
+    empty.className="chart-empty";
+    empty.textContent="No records to graph.";
+    host.appendChild(empty);
+    return;
+  }
+  const NS="http://www.w3.org/2000/svg";
+  const svg=document.createElementNS(NS,"svg");
+  svg.setAttribute("viewBox","0 0 560 310");
+  svg.setAttribute("role","img");
+  svg.setAttribute("aria-label","Line graph of monthly record totals, with a separate color for each year");
+  const add=(tag,attrs,text)=>{
+    const el=document.createElementNS(NS,tag);
+    for(const [key,value] of Object.entries(attrs)) el.setAttribute(key,String(value));
+    if(text!==undefined) el.textContent=text;
+    svg.appendChild(el);
+    return el;
+  };
+  const left=48,right=548,top=16,bottom=268;
+  const max=Math.max(1,...[...yearly.values()].flat());
+  const step=Math.max(1,Math.ceil(max/5));
+  const ceiling=step*5;
+  const x=i=>left+(right-left)*i/11;
+  const y=value=>bottom-(bottom-top)*value/ceiling;
+  for(let i=0;i<=5;i++) {
+    const value=i*step, yy=y(value);
+    add("line",{x1:left,y1:yy,x2:right,y2:yy,stroke:"#ddd","stroke-width":1});
+    add("text",{x:left-9,y:yy+4,"text-anchor":"end","font-size":13,fill:"#555"},String(value));
+  }
+  const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  months.forEach((month,i)=>add("text",{x:x(i),y:bottom+22,"text-anchor":"middle","font-size":12,fill:"#333"},month));
+  add("line",{x1:left,y1:top,x2:left,y2:bottom,stroke:"#777"});
+  add("line",{x1:left,y1:bottom,x2:right,y2:bottom,stroke:"#777"});
+  const colors=["#1565c0","#d84315","#2e7d32","#7b1fa2","#00838f","#ad1457","#6d4c41","#455a64","#827717","#ef6c00"];
+  [...yearly.entries()].sort((a,b)=>a[0]-b[0]).forEach(([year,values],index)=>{
+    const color=colors[index%colors.length];
+    add("polyline",{points:values.map((value,i)=>`${x(i)},${y(value)}`).join(" "),fill:"none",stroke:color,"stroke-width":3,"stroke-linecap":"round","stroke-linejoin":"round"});
+    values.forEach((value,i)=>{
+      const dot=add("circle",{cx:x(i),cy:y(value),r:3.4,fill:color});
+      const title=document.createElementNS(NS,"title");
+      title.textContent=`${year} ${months[i]}: ${value}`;
+      dot.appendChild(title);
+    });
+    const item=document.createElement("span");
+    const swatch=document.createElement("i");
+    swatch.className="chart-swatch";
+    swatch.style.backgroundColor=color;
+    item.append(swatch,document.createTextNode(String(year)));
+    legend.appendChild(item);
+  });
+  host.appendChild(svg);
+}
 function showStats() {
   closeFileMenu();
   document.getElementById("listScreen").hidden=true;
@@ -511,6 +589,7 @@ function showStats() {
     .map(([value,count])=>`${value} (${count})`)
     .join("     ");
   document.getElementById("statsGapFrequency").textContent=gapText || "0 (0)";
+  renderMonthlyGraph();
 }
 function showEdit(mode,id=null) {
   setActionsEnabled(false);
