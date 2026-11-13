@@ -18,17 +18,18 @@
   .version { font-size:18px; color:#666; margin-top:30px; }
   .since-new { font-size:16px; margin:0; padding:0 32px 2px; color:#111; }
   details.action-disabled summary { color:#888; cursor:default; pointer-events:none; }
-  nav { background:#eee; border-bottom:1px solid #bbb; height:45px; padding:0; display:flex; align-items:stretch; }
-  details { width:auto; }
+  nav { background:#eee; border-bottom:1px solid #bbb; height:30px; padding:0; display:flex; align-items:stretch; }
+  nav details { width:auto; position:relative; }
   details summary {
-    list-style:none; cursor:pointer; height:45px; padding:11px 52px;
-    font-size:18px; font-weight:700; user-select:none;
+    list-style:none; cursor:pointer; height:30px; padding:7px 34.67px;
+    font-size:12px; font-weight:700; user-select:none;
   }
-  #statsBtn, #listBtn {
-    height:45px; border:0; border-radius:0; background:#eee;
-    padding:0 28px; font-size:18px; font-weight:700;
+  #statsBtn, #listBtn, #summaryBtn {
+    height:30px; border:0; border-radius:0; background:#eee;
+    padding:0 18.67px; font-size:12px; font-weight:700;
   }
-  #statsBtn:hover, #listBtn:hover { background:#e5e5e5; }
+  #statsBtn:hover, #listBtn:hover, #summaryBtn:hover { background:#e5e5e5; }
+  nav button.active-view { background:#bcbcbc !important; }
   .stats-screen { max-width:500px; margin:10px 21px; }
   .stats-screen h2 { margin:0 0 20px; font-size:24px; }
   .stats-line { margin:0 0 12px; font-size:18px; }
@@ -42,13 +43,13 @@
 
   details summary::-webkit-details-marker { display:none; }
   .menu {
-    position:absolute; z-index:20; left:0; top:165px; width:155px;
+    position:absolute; z-index:20; left:0; top:30px; width:103.33px;
     background:#eee; border:1px solid #aaa; box-shadow:0 8px 18px rgba(0,0,0,.20);
     display:flex; flex-direction:column; gap:0;
   }
   .menu button {
-    width:100%; height:28.125px; border:0; border-radius:0; background:#eee;
-    text-align:left; padding:0 14px; font-size:18.75px;
+    width:100%; height:18.75px; border:0; border-radius:0; background:#eee;
+    text-align:left; padding:0 9.33px; font-size:12.5px;
   }
   .menu button:hover { background:#e5e5e5; }
   .menu button:disabled {
@@ -100,7 +101,7 @@
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v31</div>
+  <div class="version">v32</div>
 </header>
 <div class="since-new">Time since last new record: <span id="timeSinceNew">—</span></div>
 
@@ -387,6 +388,14 @@ function setActionsEnabled(enabled) {
   details.querySelectorAll(".menu button").forEach(btn=>btn.disabled=!enabled);
   if (!enabled) details.removeAttribute("open");
 }
+function setActiveView(view) {
+  for (const name of ["list", "summary", "stats"]) {
+    const btn=document.getElementById(name+"Btn");
+    btn.classList.toggle("active-view",name===view);
+    btn.setAttribute("aria-current",name===view ? "page" : "false");
+  }
+  setActionsEnabled(view==="list");
+}
 function renderList() {
   sortRecords();
   const tbody=document.getElementById("rows");
@@ -427,7 +436,7 @@ function renderList() {
   }
 }
 function showList() {
-  setActionsEnabled(true);
+  setActiveView("list");
   document.getElementById("editScreen").hidden=true;
   document.getElementById("statsScreen").hidden=true;
   document.getElementById("summaryScreen").hidden=true;
@@ -436,6 +445,7 @@ function showList() {
 }
 function showSummary() {
   closeFileMenu();
+  setActiveView("summary");
   document.getElementById("listScreen").hidden=true;
   document.getElementById("statsScreen").hidden=true;
   document.getElementById("editScreen").hidden=true;
@@ -535,6 +545,7 @@ function renderMonthlyGraph() {
 }
 function showStats() {
   closeFileMenu();
+  setActiveView("stats");
   document.getElementById("listScreen").hidden=true;
   document.getElementById("summaryScreen").hidden=true;
   document.getElementById("editScreen").hidden=true;
@@ -592,7 +603,7 @@ function showStats() {
   renderMonthlyGraph();
 }
 function showEdit(mode,id=null) {
-  setActionsEnabled(false);
+  setActiveView(null);
   document.getElementById("listScreen").hidden=true;
   document.getElementById("editScreen").hidden=false;
   document.getElementById("editTitle").textContent=mode;
@@ -916,6 +927,7 @@ document.getElementById("confirmImport").onclick=()=>{
 document.getElementById("quitBtn").onclick=()=>{closeFileMenu();document.getElementById("quitModal").style.display="flex";};
 document.getElementById("closeQuit").onclick=()=>document.getElementById("quitModal").style.display="none";
 
+setActiveView("list");
 initializeData().then(()=>{renderList();startTimeSinceTimer();}).catch(()=>{renderList();startTimeSinceTimer();});
 </script>
 </body>
