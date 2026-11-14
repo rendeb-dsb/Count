@@ -67,6 +67,8 @@
   .list .dayCol { width:40px; }
   .list .dateCol { width:110px; }
   .list .timeCol { width:70px; }
+  .list .diffCol { width:100px; }
+  .diff-days { color:#c00000; }
   .list td { border-left:1px solid #ccc; border-right:1px solid #ccc; border-bottom:1px solid #ccc; height:27px; line-height:27px; font-size:14px; }
   .list td:first-child { text-align:center; }
   .list input[type="radio"] { width:18px; height:18px; accent-color:#777; margin:0; vertical-align:middle; }
@@ -95,13 +97,15 @@
     .list .dayCol { width:40px; }
     .list .dateCol { width:110px; }
     .list .timeCol { width:70px; }
+  .list .diffCol { width:100px; }
+  .diff-days { color:#c00000; }
   }
 </style>
 </head>
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v32</div>
+  <div class="version">v33</div>
 </header>
 <div class="since-new">Time since last new record: <span id="timeSinceNew">—</span></div>
 
@@ -126,8 +130,8 @@
 
 <main id="listScreen">
   <table class="list">
-    <colgroup><col class="radioCol"><col class="dayCol"><col class="dateCol"><col class="timeCol"></colgroup>
-    <thead><tr><th></th><th>Day</th><th>Date</th><th>Time</th></tr></thead>
+    <colgroup><col class="radioCol"><col class="dayCol"><col class="dateCol"><col class="timeCol"><col class="diffCol"></colgroup>
+    <thead><tr><th></th><th>Day</th><th>Date</th><th>Time</th><th>Diff.</th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
   <div id="empty" class="empty">No records stored.</div>
@@ -396,6 +400,18 @@ function setActiveView(view) {
   }
   setActionsEnabled(view==="list");
 }
+function recordDateTimeMs(record) {
+  const [month, day, year] = record.date.split("/").map(Number);
+  const [hour, minute] = record.time.split(":").map(Number);
+  return new Date(year, month - 1, day, hour, minute).getTime();
+}
+function formatRowDiff(upper, lower) {
+  const minutes = Math.max(0, Math.floor((recordDateTimeMs(upper) - recordDateTimeMs(lower)) / 60000));
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const mins = minutes % 60;
+  return [String(days).padStart(2,"0"), String(hours).padStart(2,"0") + ":" + String(mins).padStart(2,"0")];
+}
 function renderList() {
   sortRecords();
   const tbody=document.getElementById("rows");
@@ -411,7 +427,7 @@ function renderList() {
   const colorByDate = new Map();
   let colorIndex = 0;
 
-  for (const r of records) {
+  for (const [index, r] of records.entries()) {
     const tr=document.createElement("tr");
     if (dateCounts.get(r.date) >= 2) {
       if (!colorByDate.has(r.date)) {
@@ -432,7 +448,15 @@ function renderList() {
     td1.textContent=dayNames[new Date(y,m-1,d).getDay()];
     const td2=document.createElement("td"); td2.textContent=r.date;
     const td3=document.createElement("td"); td3.textContent=r.time;
-    tr.append(td0,td1,td2,td3); tbody.appendChild(tr);
+    const td4=document.createElement("td");
+    if (index + 1 < records.length) {
+      const [days, rest] = formatRowDiff(r, records[index + 1]);
+      const redDays=document.createElement("span");
+      redDays.className="diff-days";
+      redDays.textContent=days;
+      td4.append(redDays, document.createTextNode(":" + rest));
+    }
+    tr.append(td0,td1,td2,td3,td4); tbody.appendChild(tr);
   }
 }
 function showList() {
