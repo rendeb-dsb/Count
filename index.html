@@ -105,7 +105,7 @@
 <body>
 <header>
   <h1>Count</h1>
-  <div class="version">v33</div>
+  <div class="version">v34</div>
 </header>
 <div class="since-new">Time since last new record: <span id="timeSinceNew">—</span></div>
 
@@ -452,7 +452,7 @@ function renderList() {
     if (index + 1 < records.length) {
       const [days, rest] = formatRowDiff(r, records[index + 1]);
       const redDays=document.createElement("span");
-      redDays.className="diff-days";
+      if (days !== "00") redDays.className="diff-days";
       redDays.textContent=days;
       td4.append(redDays, document.createTextNode(":" + rest));
     }
